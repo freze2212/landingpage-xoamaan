@@ -1,0 +1,575 @@
+<html lang="vi"><head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>S.Y.S.T.E.M // OVERRIDE</title>
+    <style>
+        /* Import font kiểu Terminal đỉnh cao */
+        @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&display=swap');
+
+        body, html {
+            margin: 0; padding: 0;
+            width: 100%; height: 100%;
+            background-color: #050505;
+            font-family: 'Share Tech Mono', monospace;
+            color: #20c20e;
+            overflow: hidden;
+            user-select: none;
+        }
+
+        /* ---------------- MATRIX BACKGROUND ---------------- */
+        #matrix {
+            position: absolute;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            z-index: 1;
+            opacity: 0.35; /* Làm mờ vừa phải để không rối */
+        }
+
+        /* ---------------- RAW HEX DUMP BACKGROUND ---------------- */
+        .hex-bg {
+            position: absolute;
+            right: 0; top: 0;
+            width: 30%; height: 100%;
+            overflow: hidden;
+            opacity: 0.2;
+            font-size: 0.8rem;
+            color: #1a6d36;
+            word-wrap: break-word;
+            z-index: 0;
+            text-align: right;
+            padding-right: 15px;
+            font-family: monospace;
+        }
+
+        /* ---------------- HIỆU ỨNG MÀN HÌNH CRT CŨ ---------------- */
+        .crt-effect {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.25) 50%), 
+                        linear-gradient(90deg, rgba(255, 0, 0, 0.06), rgba(0, 255, 0, 0.02), rgba(0, 0, 255, 0.06));
+            background-size: 100% 4px, 6px 100%;
+            z-index: 10;
+            pointer-events: none;
+            box-shadow: inset 0 0 120px rgba(0,0,0,0.95);
+        }
+
+        /* ---------------- BẢNG TELEMETRY HUD GÓC TRÁI ---------------- */
+        .hud {
+            position: absolute;
+            top: 25px; left: 25px;
+            z-index: 5;
+            font-size: 0.9rem;
+            color: #20c20e;
+            text-shadow: 0 0 5px #20c20e;
+            line-height: 1.6;
+            opacity: 0.9;
+            display: flex;
+            flex-direction: column;
+            gap: 5px;
+            border-left: 2px solid #20c20e;
+            padding-left: 10px;
+        }
+        
+        @media (max-width: 768px) {
+            /* Ẩn bớt các mục phụ trên mobile */
+            .hud, .hex-bg { display: none !important; }
+            
+            /* Thu gọn Modal chính */
+            .modal { width: 95%; padding: 2px; }
+            .modal-inner { padding: 20px 15px; }
+            
+            /* Tiêu đề & Cột mốc */
+            .header-title { font-size: 1.1rem; margin-bottom: 15px; letter-spacing: 1px; }
+            .status-row { font-size: 0.95rem; margin-bottom: 8px; }
+            .bar-container { height: 16px; margin-bottom: 15px; }
+            
+            /* Dòng chữ ma trận hacker */
+            .terminal { height: 260px; font-size: 0.85rem; line-height: 1.6; }
+            .prefix { min-width: 85px; font-size: 0.75rem; margin-right: 8px; }
+            .message.hl { font-size: 0.9rem; }
+            
+            /* MÀN HÌNH OVERLAY THÀNH CÔNG (Thu nhỏ để vừa vặn) */
+            .shield-icon { font-size: 2.2rem; margin-bottom: 5px; }
+            .success-text { 
+                font-size: 1.15rem; 
+                letter-spacing: 0px; 
+                margin-bottom: 15px; 
+                line-height: 1.3; 
+            }
+            .btn-hack { 
+                padding: 12px 10px; 
+                font-size: 0.95rem; 
+                width: 100%; 
+                margin: 0 auto 15px auto;
+                box-sizing: border-box; 
+                display: flex;
+                justify-content: center;
+                align-items: center;
+                text-align: center;
+                line-height: normal;
+            }
+            .success-features { 
+                font-size: 0.75rem; 
+                line-height: 1.4; 
+                padding: 12px; 
+                margin-bottom: 5px; 
+                text-align: left;
+                width: 95%;
+            }
+            .success-features div { padding-bottom: 6px; }
+        }
+
+        .hud span { color: #fff; }
+        .blink-red { color: #ff3333 !important; text-shadow: 0 0 10px red !important; animation: blinkWarning 1s infinite; font-weight: bold;}
+        @keyframes blinkWarning { 0%, 100% {opacity:1;} 50% {opacity:0;} }
+
+        /* ---------------- KHUNG TOOL CHÍNH TRONG SUỐT ---------------- */
+        .modal {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 90%;
+            max-width: 750px;
+            background: rgba(0, 15, 10, 0.75);
+            border: 1px solid #1a6d36;
+            box-shadow: 0 0 40px rgba(32, 194, 14, 0.15), inset 0 0 25px #000;
+            backdrop-filter: blur(12px);
+            border-radius: 6px;
+            z-index: 5;
+            padding: 4px; /* Viền ngoài kim loại */
+        }
+
+        .modal-inner {
+            border: 1px dashed #1a6d36;
+            padding: 35px;
+            border-radius: 4px;
+            position: relative;
+        }
+
+        /* Khung quét ngang màn hình modal */
+        .scan-bar {
+            position: absolute;
+            top: 0; left: 0; width: 100%; height: 5px;
+            background: rgba(32, 194, 14, 0.4);
+            box-shadow: 0 0 15px #20c20e;
+            animation: scanner 3s infinite linear;
+            z-index: 100;
+            pointer-events: none;
+        }
+        @keyframes scanner { 
+            0% { top: 0%; opacity: 0; } 
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; } 
+        }
+
+        .header-title {
+            font-size: 1.6rem;
+            text-align: center;
+            letter-spacing: 3px;
+            margin-bottom: 25px;
+            text-transform: uppercase;
+            text-shadow: 0 0 10px #20c20e, 0 0 20px #20c20e;
+            border-bottom: 2px solid #1a6d36;
+            padding-bottom: 15px;
+            font-weight: bold;
+        }
+
+        /* ---------------- THANH PROGRESS & SỐ % ---------------- */
+        .status-row {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: 10px;
+            font-size: 1.25rem;
+            text-shadow: 0 0 5px #20c20e;
+            font-weight: bold;
+        }
+
+        .bar-container {
+            width: 100%;
+            height: 22px;
+            background: #020a05;
+            border: 1px solid #20c20e;
+            position: relative;
+            margin-bottom: 25px;
+            box-shadow: 0 0 15px rgba(32, 194, 14, 0.3);
+            border-radius: 2px;
+            overflow: hidden;
+        }
+
+        .bar-fill {
+            height: 100%;
+            width: 0%;
+            background: #20c20e;
+            box-shadow: 0 0 20px #20c20e;
+            position: relative;
+            transition: width 0.1s;
+        }
+
+        /* Sọc chéo trên thanh loading */
+        .bar-fill::after {
+            content: '';
+            position: absolute;
+            top: 0; right: 0; bottom: 0; left: 0;
+            background: repeating-linear-gradient(
+                45deg,
+                transparent,
+                transparent 15px,
+                rgba(0,0,0,0.4) 15px,
+                rgba(0,0,0,0.4) 30px
+            );
+        }
+
+        /* ---------------- LOG TERMINAL ---------------- */
+        .terminal {
+            height: 280px;
+            overflow-y: hidden;
+            font-size: 1.1rem;
+            line-height: 1.9;
+            position: relative;
+            padding-right: 10px;
+        }
+
+        .term-line {
+            display: flex;
+            align-items: flex-start;
+            margin-bottom: 5px;
+        }
+
+        .prefix {
+            color: #555;
+            margin-right: 15px;
+            min-width: 125px;
+            font-size: 0.95rem;
+            padding-top: 2px;
+        }
+
+        .message {
+            color: #20c20e;
+            flex-grow: 1;
+            word-wrap: break-word;
+        }
+
+        .message.hl {
+            color: #fff;
+            text-shadow: 0 0 10px #2cfb14, 0 0 20px #2cfb14;
+            font-weight: bold;
+            font-size: 1.15rem;
+        }
+
+        /* ---------------- MÀN HÌNH THÀNH CÔNG ---------------- */
+        .success-overlay {
+            display: none; /* Sẽ được JS bật lên */
+            position: relative;
+            width: 100%;
+            background: transparent;
+            z-index: 200;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            animation: fadeInGlass 0.6s ease-out;
+        }
+
+        @keyframes fadeInGlass {
+            from { opacity: 0; transform: scale(0.95); }
+            to { opacity: 1; transform: scale(1); }
+        }
+
+        .shield-icon {
+            font-size: 4.5rem;
+            margin-bottom: 25px;
+            filter: drop-shadow(0 0 20px #20c20e);
+            animation: float 2s ease-in-out infinite;
+        }
+
+        @keyframes float {
+            0%, 100% { transform: translateY(0); }
+            50% { transform: translateY(-15px); }
+        }
+
+        .success-text {
+            font-size: 1.7rem;
+            color: #fff;
+            text-shadow: 0 0 10px #20c20e, 0 0 30px #2cfb14, 0 0 50px #2cfb14;
+            letter-spacing: 2px;
+            margin-bottom: 30px;
+            font-weight: bold;
+            text-transform: uppercase;
+        }
+
+        .success-features {
+            text-align: left;
+            margin-top: 25px;
+            font-size: 1.1rem;
+            line-height: 2;
+            color: #fff;
+            text-shadow: 0 0 10px #20c20e;
+            background: rgba(0, 15, 10, 0.85);
+            padding: 20px 25px;
+            border: 1px dashed #20c20e;
+            border-radius: 4px;
+            box-shadow: 0 0 20px rgba(32, 194, 14, 0.4), inset 0 0 20px rgba(0,0,0,0.8);
+            font-family: inherit;
+        }
+
+        .btn-hack {
+            background: rgba(32, 194, 14, 0.1);
+            color: #20c20e;
+            border: 2px solid #20c20e;
+            padding: 15px 40px;
+            font-size: 1.3rem;
+            font-family: inherit;
+            cursor: pointer;
+            text-transform: uppercase;
+            text-decoration: none;
+            letter-spacing: 2px;
+            transition: 0.3s;
+            position: relative;
+            overflow: hidden;
+            box-shadow: 0 0 15px rgba(32, 194, 14, 0.3);
+            border-radius: 4px;
+            font-weight: bold;
+        }
+
+        .btn-hack:hover {
+            background: #20c20e;
+            color: #000;
+            box-shadow: 0 0 30px #2cfb14, 0 0 60px #2cfb14;
+            text-shadow: none;
+            transform: scale(1.05);
+        }
+    </style>
+</head>
+<body>
+
+    <!-- 1. Hiệu ứng ma trận rớt số -->
+    <canvas id="matrix"></canvas>
+
+    <!-- 2. Hiệu ứng dữ liệu chạy dọc nền -->
+    <div class="hex-bg" id="hex">DA9354 430FA9 4EF5F4 028D78 61FFD3 A9DAE1 6C18F3 5DAD82 E02E34 550938 1FB432 C59D37 C9291F DD359F D95EB1 21445F 6C5DFB 573DA0 810D39 98A9B2 3B914E 014E3B 06010F C8970D EE6863 945718 682729 407345 C7522F 05DA34 D6B1A2 A71EAC 188EA7 A7C0FD AA4C47<br>28A1AB B000FF 0AC742 CFD4F4 ED3866 10406A D6CF26 03CCCE 2A845F E4FCFF 84DA63 512882 502394 0B35EA 217C07 229542 F330BF AF6829 5928F6 6C37EB 8FABA4 5B78CF 378341 1504B2 171E79 25B707 5F99F7 1DEB3D 8D1038 0578DE E3BF12 2FF5F6 03B73E 39FC6B 11FE51<br>ED6355 4516A6 1AD0BB 83F9B0 C68F6E 9D4B60 8A21AA 21D7CF 11A335 8D5A0C 5389D2 811405 2C9DF1 4D6DF6 9BF416 39A40D F44FED 297290 5C08FE AFBEE6 AB0A5E 5B0660 CB19E4 ADF8BE 88A549 FA4372 C400C4 FB2435 339996 253979 CEFA8A EEC9A4 4EFDD5 A64E23 D69120<br>374E81 DF0262 4C32F6 A8EA07 BD2AF5 B19CFE 2E16B6 9CD31D DB3CAA CC1BC4 B7CDB0 188DCF 38A8C5 55A14E 593D01 8C4743 F1ED94 60A89F 1D4457 A9554E 7F1E0E 9A67DA 907566 34D79B 44AA0D 25FA41 FBCC69 8470CE AD863A 5DE2BC C23531 C611C6 62A9F4 BD042D 2B8E6D<br>20DCC6 DF40A1 ED9F72 6A779C 725C17 DF6A2C 0F1000 152121 9EBACC FFCDE2 EDAF9D 636C30 2644D8 8DDEB7 73BD9D 173B8D 5B80E4 AC5A82 892A47 6F4324 946F06 A59C66 930E64 60339C 9240DB 41F6EF 1B3AE7 B6CA65 58B941 1AFBB6 338D94 126F92 FADD82 DC9075 A0D1C3<br>162DE0 FA68B0 2538E7 FB96B6 696F32 A6B883 AF114E 9CC874 7CB578 23124D A466CF E042E1 D4638B 8FD915 F0F3B1 D6E599 5279B2 43C1C1 AA94A8 039F61 0D2EE4 AA5E32 20689A D7AC57 DE6B74 5FA88A 94EEE8 C0C0BC D9B79A DEA040 45A32C 3F6CDC B5A966 9FD30C 34B5DA<br>4B0B2B A26FE8 1193B7 9ECB9C 1DF47E 3B70FC 504796 0DC6C4 5AB488 DC2B63 C3F692 518D60 E86BA4 559F13 830EE3 CD5983 A8FC66 19D8D4 0C3B1B 32EA33 22CD3D 551177 D8BFE4 C4DAA9 041E0F 213284 22B9B7 EFCA97 09AB8D 2E3381 0F8429 E79C1A F85FC2 F0C9AD 7A36E6<br>7BE5F2 7A1DD0 450D45 28C3B0 3D5E70 5B6548 78F423 710472 272621 AC89C5 48F715 29FFE8 EA070D B4F0A4 89609B 0A3605 95A33F 2CF65E 298534 121A9D FE60B6 251F01 71DD91 DBD43D 01E700 FBCEDF FDFC05 59B71C 1D4BDD D8AB19 9D631F FEFF3B E261D2 7720C8 E73FD0<br>967153 E3E158 EBB8D0 2A0E18 9C2A53 AB0206 3A701D 37DA96 A577D0 B7F30C 71DE61 417E90 2289F3 A8B1C4 923631 C276FB B0C862 60D27A CA0759 BAB493 58F9C1 6E7142 E1DD62 82864F 873243 EE5C6F EB98C4 4AA358 575D8D 5DE140 8551E4 0C03E7 71F501 504BBE C87168<br>F95352 681255 EFE496 D6176C B9508D A0E3B2 DD780B BDF772 F48EA8 00C142 F1A235 CAF280 6CD442 1C05A6 A2DC74 C60D86 45E243 257BAC 410CBE 8400B7 0557B6 2C0B70 04CFA3 435763 A9A080 3985A3 ABE0C3 1640AF F942AC 2E74E5 48E416 A9208C B85FE5 73E06C D79C5F<br>E327D8 BC7CC9 C7343A D515A6 816A40 60317D 9D0756 114EF8 1F53BC 89E78E 88221D 166B1F A31CEF 6FBB82 BB5811 F02B8F 76CF9B 135AC4 C2BEBB 67179B 3D13B1 5F01B2 389A11 45BE8D C965F2 18BB80 7F8B9A A78FC2 B035E0 5E8BE6 FCC9A8 656A90 1BE714 C7F8F0 8A027A<br>548FBE 31A06A 6B32D6 74880F FC8D16 1C5B44 5920C3 D64E80 7F3F27 424200 59A404 92C938 BB81DC 8F8935 AEE771 9A2416 4AB8F4 52F405 76A234 C5CC5C B50DAC CE29EF C36E02 B70CDC 9DD3F1 EFCE9D 53FFBB 724051 04C18C 447980 354BFD CECBC1 DA2888 A95056 F19B98<br>93456B 236256 D6EB23 BE2A01 DAB00A 3AA043 126902 670360 73F6</div>
+
+    <!-- 3. Hiệu ứng CRT lưới màn hình -->
+    <div class="crt-effect"></div>
+
+    <!-- 4. Bản HUD theo dõi góc trái -->
+    <div class="hud">
+        <div>SYS_NODE_ID: <span id="hud-node">0x630E30</span></div>
+        <div>ENCRYPTION_BYPASS: <span id="hud-enc">RSA-4096 (CRACKING)</span></div>
+        <div class="blink-red">WARN: ROOT ACCESS OVERRIDE IN PROGRESS</div>
+    </div>
+
+    <!-- 5. Phím điều khiển chính ở giữa -->
+    <div class="modal">
+        <div class="modal-inner">
+            <div class="scan-bar"></div>
+
+            <div class="header-title">[ HỆ THỐNG XÂM NHẬP MÃ ẨN CASINO VIP ]</div>
+            
+            <div class="status-row">
+                <div>TIẾN TRÌNH THỰC THI:</div>
+                <div id="percent">0.00%</div>
+            </div>
+
+            <div class="bar-container">
+                <div class="bar-fill" id="bar" style="width: 0%;"></div>
+            </div>
+
+            <div class="terminal" id="terminal">
+                <!-- Data đổ xuống từ JS bằng giải thuật Dịch Mã -->
+            </div>
+
+            <!-- Khung Màn hình báo thành công sẽ che lấp màn hình đen -->
+            <div class="success-overlay" id="success">
+                <div class="shield-icon">🔓</div>
+                <div class="success-text">XÓA MÃ ẨN & KÍCH ROOT THÀNH CÔNG</div>
+                <a class="btn-hack" id="btn-link" href="javascript:void(0);">TRUY CẬP VÀO GAME NGAY ➡</a>
+                <div class="success-features">
+                    <div>✅ KHÔNG LẬP TRÌNH CAN THIỆP KẾT QUẢ </div>
+                    <div>✅ AN TOÀN BẢO MẬT TUYỆT ĐỐI THÔNG TIN</div>
+                    <div>✅ TẮT CHẾ ĐỘ LƯU TRỮ XÓA MÃ ẨN IP MẠNG</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // ==========================================
+        // CÀI ĐẶT URL MỤC TIÊU 
+        // ==========================================
+        const targetUrl = 'https://www.gg8826.com/?id=406794730'; 
+        const btnLink = document.getElementById('btn-link');
+        btnLink.href = 'javascript:void(0);';
+        btnLink.addEventListener('click', function() {
+            window.location.href = targetUrl;
+        });
+
+        // --- BACKGROUND MA TRẬN (MATRIX DIGITAL RAIN) ---
+        const canvas = document.getElementById('matrix');
+        const ctx = canvas.getContext('2d');
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
+        
+        const katakana = 'アァカサタナハマヤャラワガザダバパイィキシチニヒミリヰギジヂビピウゥクスツヌフムユュルグズブヅプエェケセテネヘメレゲゼデベペオォコソトノホモヨョロゴゾドボポヴッン';
+        const latin = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ';
+        const nums = '0123456789!@#$%^&*';
+        const alphabet = katakana + latin + nums;
+        const fontSize = 16;
+        const columns = canvas.width/fontSize;
+        const drops = [];
+        for(let x = 0; x < columns; x++) drops[x] = 1;
+
+        function drawMatrix() {
+            ctx.fillStyle = 'rgba(0, 5, 0, 0.08)';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#1a8c2d';
+            ctx.font = fontSize + 'px monospace';
+            for(let i = 0; i < drops.length; i++) {
+                const text = alphabet.charAt(Math.floor(Math.random() * alphabet.length));
+                if (Math.random() > 0.95) {
+                    ctx.fillStyle = '#fff';
+                    ctx.shadowBlur = 10;
+                    ctx.shadowColor = '#fff';
+                } else {
+                    ctx.fillStyle = '#1a8c2d';
+                    ctx.shadowBlur = 0;
+                }
+                ctx.fillText(text, i*fontSize, drops[i]*fontSize);
+                if(drops[i]*fontSize > canvas.height && Math.random() > 0.975) drops[i] = 0;
+                drops[i]++;
+            }
+        }
+        setInterval(drawMatrix, 40);
+
+        window.addEventListener('resize', () => {
+            canvas.width = window.innerWidth;
+            canvas.height = window.innerHeight;
+        });
+
+        // --- BACKGROUND DATA HEX ---
+        const hexBg = document.getElementById('hex');
+        setInterval(() => {
+            let str = '';
+            for(let i=0; i<35; i++) str += Math.floor(Math.random()*16777215).toString(16).toUpperCase().padStart(6,'0') + '  ';
+            hexBg.innerText = str + '\n' + hexBg.innerText;
+            if(hexBg.innerText.length > 3000) hexBg.innerText = hexBg.innerText.substring(0, 3000);
+        }, 50);
+
+        // --- CẬP NHẬT HUD THÔNG BÁO GÓC TRÁI ---
+        setInterval(() => {
+            document.getElementById('hud-node').innerText = '0x' + Math.floor(Math.random()*9999999).toString(16).toUpperCase();
+            const encList = ['AES-256 (BYPASSING)', 'RSA-4096 (CRACKING)', 'BLOWFISH (DECRYPT: OK)'];
+            document.getElementById('hud-enc').innerText = encList[Math.floor(Math.random()*encList.length)];
+        }, 800);
+
+        // --- KỊCH BẢN XÂM NHẬP HACKER (CHUỖI LỆNH) ---
+        const terminal = document.getElementById('terminal');
+        const tasks = [
+            { txt: "Đang mở cổng kết nối ẩn (Ghost Tunnel) tới máy chủ Casino...", hl: false },
+            { txt: "Tường lửa phân tán Cloudflare tầng mạng lõi: BYPASSED", hl: false },
+            { txt: "Đang dò tìm lỗ hổng trong mã nguồn lưu trữ Thuật toán...", hl: false },
+            { txt: "[+] THÀNH CÔNG: Mã ẩn vô hiệu hóa truy vết IP User đã bị vô hiệu.", hl: true },
+            { txt: "Đang cấu trúc lại chuỗi bảo mật RSA-4096...", hl: false },
+            { txt: "Đang ghi đè dữ liệu... Kích hoạt quyền ROOT cho tài khoản.", hl: false },
+            { txt: "[+] THÀNH CÔNG: Tắt cơ chế nhà cái theo dõi Lịch Sử Cược", hl: true },
+            { txt: "Tiêm mã độc kích hoạt hệ số THẮNG LỚN (BIG WIN MOD)...", hl: false },
+            { txt: "[+] THÀNH CÔNG: Max tỉ lệ NỔ HŨ (JACKPOT) & SCATTER cho vòng tiếp theo.", hl: true },
+            { txt: "Đang xóa log quét hành vi mạng và dọn dẹp hệ thống...", hl: false },
+            { txt: "[+] HOÀN TẤT. KẾT NỐI VÀO CỔNG GAME KÍCH HOẠT CHẾ ĐỘ VIP CHUẨN BỊ.", hl: true }
+        ];
+
+        function getTimestamp() {
+            let d = new Date();
+            let ms = Math.floor(Math.random()*999).toString().padStart(3,'0');
+            return `[${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}:${d.getSeconds().toString().padStart(2,'0')}.${ms}]`;
+        }
+
+        const scrambleChars = 'ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789!@#$%^&*()_+<>{}|?';
+        async function scrambleText(element, finalString, speed = 25) {
+            let iterations = 0;
+            const len = finalString.length;
+            return new Promise(resolve => {
+                const interval = setInterval(() => {
+                    let textBuffer = '';
+                    for (let i = 0; i < len; i++) {
+                        if (i < iterations) {
+                            textBuffer += finalString[i];
+                        } else {
+                            textBuffer += scrambleChars[Math.floor(Math.random() * scrambleChars.length)];
+                        }
+                    }
+                    element.innerHTML = textBuffer;
+                    
+                    if (iterations >= len) {
+                        clearInterval(interval);
+                        element.innerHTML = finalString; 
+                        resolve();
+                    }
+                    iterations += 2.5;
+
+                }, speed);
+            });
+        }
+
+        let progress = 0;
+        let taskIdx = 0;
+        let isScrambling = false;
+        
+        async function addLogLine() {
+            if (taskIdx >= tasks.length) return;
+            isScrambling = true;
+
+            const task = tasks[taskIdx];
+            taskIdx++;
+
+            const lineDiv = document.createElement('div');
+            lineDiv.className = 'term-line';
+
+            const prefix = document.createElement('div');
+            prefix.className = 'prefix';
+            prefix.innerText = getTimestamp();
+
+            const msgSpan = document.createElement('div');
+            msgSpan.className = 'message ' + (task.hl ? 'hl' : '');
+            
+            lineDiv.appendChild(prefix);
+            lineDiv.appendChild(msgSpan);
+            terminal.appendChild(lineDiv);
+            
+            terminal.scrollTop = terminal.scrollHeight;
+
+            await scrambleText(msgSpan, task.txt, 2);
+            isScrambling = false;
+        }
+
+        function runSystem() {
+            const pb = document.getElementById('bar');
+            const pt = document.getElementById('percent');
+            
+            const inc = Math.random() * 1.5 + 1.2;
+            progress += inc;
+            if(progress >= 100) progress = 100;
+
+            pb.style.width = progress + '%';
+            pt.innerText = progress.toFixed(2).padStart(5,'0') + '%';
+
+            const triggerPoints = [1, 9, 20, 31, 45, 58, 69, 81, 88, 94, 98];
+            if (taskIdx < triggerPoints.length && progress >= triggerPoints[taskIdx] && !isScrambling) {
+                addLogLine();
+            }
+
+            if(progress < 100) {
+                setTimeout(runSystem, 10 + Math.random()*20);
+            } else {
+                setTimeout(() => {
+                    document.querySelector('.header-title').style.display = 'none';
+                    document.querySelector('.status-row').style.display = 'none';
+                    document.querySelector('.bar-container').style.display = 'none';
+                    document.querySelector('.terminal').style.display = 'none';
+                    document.getElementById('success').style.display = 'flex';
+                }, 300);
+            }
+        }
+
+        setTimeout(runSystem, 200);
+    </script>
+</body></html>
