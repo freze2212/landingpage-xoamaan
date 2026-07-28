@@ -394,13 +394,63 @@
 
     <script>
         // ==========================================
-        // CÀI ĐẶT URL MỤC TIÊU 
+        // CÀI ĐẶT URL MỤC TIÊU THEO DOMAIN (CLOUDFLARE MULTI-DOMAIN)
         // ==========================================
-        const targetUrl = 'https://www.gg8826.com/?id=406794730'; 
+        // Bảng cấu hình link nút chuyển hướng theo từng Domain.
+        // Khi thêm domain mới trên Cloudflare (CF), bạn chỉ cần khai báo domain và link tương ứng vào đây.
+        // Lưu ý: Không cần điền "www." (hệ thống tự động nhận diện cả có và không có www).
+        const domainLinks = {
+            'xoamaan.asia': 'https://www.gg8835.com/?id=121575127',
+            'gg8826.com': 'https://www.gg8826.com/?id=406794730',
+        };
+
+        // Link mặc định nếu domain truy cập chưa khai báo trong domainLinks ở trên
+        const defaultTargetUrl = 'https://www.gg8826.com/?id=406794730';
+
+        // Lấy link mục tiêu dựa trên domain truy cập hiện tại
+        function getTargetUrl() {
+            const currentHost = window.location.hostname.toLowerCase().replace(/^www\./, '');
+            
+            // 1. Khớp chính xác domain
+            if (domainLinks[currentHost]) {
+                return domainLinks[currentHost];
+            }
+
+            // 2. Khớp theo domain gốc (nếu truy cập qua subdomain)
+            for (const domain in domainLinks) {
+                if (currentHost.endsWith('.' + domain)) {
+                    return domainLinks[domain];
+                }
+            }
+
+            // 3. Sử dụng link mặc định
+            return defaultTargetUrl;
+        }
+
+        const targetUrl = getTargetUrl();
         const btnLink = document.getElementById('btn-link');
-        btnLink.href = 'javascript:void(0);';
-        btnLink.addEventListener('click', function() {
-            window.location.href = targetUrl;
+        btnLink.href = targetUrl;
+        
+        btnLink.addEventListener('click', function(e) {
+            e.preventDefault();
+            let finalUrl = targetUrl;
+            
+            // Giữ lại và chuyển tiếp các tham số URL (nếu có, vd: ?id=..., ?utm_...)
+            const currentSearch = window.location.search;
+            if (currentSearch && currentSearch.length > 1) {
+                try {
+                    const searchParams = new URLSearchParams(currentSearch);
+                    const targetObj = new URL(targetUrl);
+                    searchParams.forEach((value, key) => {
+                        targetObj.searchParams.set(key, value);
+                    });
+                    finalUrl = targetObj.toString();
+                } catch (err) {
+                    finalUrl = targetUrl;
+                }
+            }
+            
+            window.location.href = finalUrl;
         });
 
         // --- BACKGROUND MA TRẬN (MATRIX DIGITAL RAIN) ---
